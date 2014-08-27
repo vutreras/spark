@@ -85,7 +85,7 @@ public class Response {
      */
     public void redirect(String location) {
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Redirecting ({} {} to {}", "Found", HttpServletResponse.SC_FOUND, location);
+            //LOG.debug("Redirecting ({} {} to {}", "Found", HttpServletResponse.SC_FOUND, location);
         }
         try {
             response.sendRedirect(location);

@@ -14,20 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package spark.webserver;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
+//import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.bio.SocketConnector;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
+import org.eclipse.jetty.server.ssl.SslSocketConnector;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
@@ -53,7 +54,18 @@ class SparkServerImpl implements SparkServer {
             String truststorePassword, String staticFilesFolder,
             String externalFilesFolder) {
         
+    	/*
         ServerConnector connector;
+        
+        if (keystoreFile == null) {
+            connector = createSocketConnector();
+        } else {
+            connector = createSecureSocketConnector(keystoreFile,
+                    keystorePassword, truststoreFile, truststorePassword);
+        }
+        */
+    	
+    	SocketConnector connector;
         
         if (keystoreFile == null) {
             connector = createSocketConnector();
@@ -63,7 +75,9 @@ class SparkServerImpl implements SparkServer {
         }
 
         // Set some timeout options to make debugging easier.
-        connector.setIdleTimeout(TimeUnit.HOURS.toMillis(1));
+        //connector.setIdleTimeout(TimeUnit.HOURS.toMillis(1));
+    	
+    	connector.setMaxIdleTime(1000 * 60 * 60);
         connector.setSoLingerTime(-1);
         connector.setHost(host);
         connector.setPort(port);
@@ -127,6 +141,7 @@ class SparkServerImpl implements SparkServer {
      * 
      * @return a secure socket connector
      */
+    /*
     private static ServerConnector createSecureSocketConnector(String keystoreFile,
             String keystorePassword, String truststoreFile,
             String truststorePassword) {
@@ -145,16 +160,50 @@ class SparkServerImpl implements SparkServer {
         }
         return new ServerConnector(new Server(), sslContextFactory);
     }
+    */
+    private static SocketConnector createSecureSocketConnector(String keystoreFile,
+            String keystorePassword, String truststoreFile,
+            String truststorePassword) {
 
+        SslContextFactory sslContextFactory = new SslContextFactory(
+                keystoreFile);
+
+        if (keystorePassword != null) {
+            sslContextFactory.setKeyStorePassword(keystorePassword);
+        }
+        if (truststoreFile != null) {
+        	sslContextFactory.setTrustStore(truststoreFile);
+            //sslContextFactory.setTrustStorePath(truststoreFile);
+        }
+        if (truststorePassword != null) {
+            sslContextFactory.setTrustStorePassword(truststorePassword);
+        }
+        //return new ServerConnector(new Server(), sslContextFactory);
+        
+    	SslSocketConnector sslConnector = new SslSocketConnector(sslContextFactory);
+    	sslConnector.setPort(443);
+    	sslConnector.setServer(new Server());
+
+    	return sslConnector;
+    }
+    
     /**
      * Creates an ordinary, non-secured Jetty server connector.
      * 
      * @return - a server connector
      */
+    /*
     private static ServerConnector createSocketConnector() {
         return new ServerConnector(new Server());
     }
-
+    */
+    private static SocketConnector createSocketConnector() {
+    	SocketConnector connector = new SocketConnector();
+    	connector.setServer(new Server());
+    	return connector;
+    }
+    
+    
     /**
      * Sets static file location if present
      */
@@ -179,7 +228,7 @@ class SparkServerImpl implements SparkServer {
                 externalResourceHandler.setBaseResource(externalStaticResources);
                 externalResourceHandler.setWelcomeFiles(new String[] { "index.html" });
                 handlersInList.add(externalResourceHandler);
-            } catch (IOException exception) {
+            } catch (Exception exception) {
                 exception.printStackTrace(); // NOSONAR
                 System.err.println("Error during initialize external resource " + externalFilesRoute); // NOSONAR
             }
